@@ -1,26 +1,228 @@
 @import "tailwindcss";
 
+/* ── Design Tokens ───────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-primary: #0f1114;
+  --bg-secondary: #161a1f;
+  --bg-tertiary: #1c2127;
+  --bg-card: rgba(28, 33, 39, 0.55);
+  --bg-card-hover: rgba(28, 33, 39, 0.7);
+
+  --text-primary: #e8eaed;
+  --text-secondary: #9aa0a8;
+  --text-tertiary: #5e6572;
+
+  --accent-hazard: #ff6b2c;
+  --accent-hazard-glow: rgba(255, 107, 44, 0.35);
+  --accent-safe: #2cd4a2;
+  --accent-safe-glow: rgba(44, 212, 162, 0.3);
+  --accent-warn: #f5b731;
+  --accent-warn-glow: rgba(245, 183, 49, 0.3);
+
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-glass: rgba(255, 255, 255, 0.08);
+
+  --glass-bg: rgba(22, 26, 31, 0.6);
+  --glass-blur: 20px;
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-bg-tertiary: var(--bg-tertiary);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-accent-hazard: var(--accent-hazard);
+  --color-accent-safe: var(--accent-safe);
+  --color-accent-warn: var(--accent-warn);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-glass: var(--border-glass);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── Base ────────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Glass Card ──────────────────────────────────────────── */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--border-glass);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.glass-card:hover {
+  background: var(--bg-card-hover);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Pulse Ring for Impact Gauge ─────────────────────────── */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+}
+
+@keyframes pulse-heartbeat {
+  0%, 100% {
+    filter: drop-shadow(0 0 6px var(--accent-hazard-glow));
+  }
+  25% {
+    filter: drop-shadow(0 0 18px var(--accent-hazard-glow));
+  }
+  50% {
+    filter: drop-shadow(0 0 8px var(--accent-hazard-glow));
+  }
+  75% {
+    filter: drop-shadow(0 0 24px var(--accent-hazard-glow));
+  }
+}
+
+.pulse-heartbeat {
+  animation: pulse-heartbeat 2s ease-in-out infinite;
+}
+
+@keyframes float-gentle {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.float-gentle {
+  animation: float-gentle 4s ease-in-out infinite;
+}
+
+/* ── Glow Line for Health Forecast ───────────────────────── */
+@keyframes glow-path {
+  0% {
+    stroke-dashoffset: 1000;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.glow-line {
+  filter: drop-shadow(0 0 4px var(--accent-hazard));
+  stroke-dasharray: 1000;
+  animation: glow-path 3s ease forwards;
+}
+
+/* ── Shimmer Effect for Map ──────────────────────────────── */
+@keyframes heat-shimmer {
+  0% {
+    background-position: 0% 50%;
+    opacity: 0.3;
+  }
+  50% {
+    background-position: 100% 50%;
+    opacity: 0.5;
+  }
+  100% {
+    background-position: 0% 50%;
+    opacity: 0.3;
+  }
+}
+
+.heat-shimmer {
+  background: linear-gradient(
+    45deg,
+    transparent 0%,
+    rgba(255, 107, 44, 0.08) 25%,
+    transparent 50%,
+    rgba(255, 107, 44, 0.06) 75%,
+    transparent 100%
+  );
+  background-size: 400% 400%;
+  animation: heat-shimmer 6s ease-in-out infinite;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* ── Bottom sheet ────────────────────────────────────────── */
+.bottom-sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--text-tertiary);
+  border-radius: 2px;
+  margin: 0 auto 12px;
+}
+
+/* ── Segmented control ───────────────────────────────────── */
+.segment-indicator {
+  transition: left 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+              width 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── Horizontal scroll no-snap ───────────────────────────── */
+.timeline-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.timeline-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Map Grid Overlay ────────────────────────────────────── */
+.map-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
 }
