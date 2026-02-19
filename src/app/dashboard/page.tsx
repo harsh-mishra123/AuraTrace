@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
-import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
+import { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 import SmokeBackground from "@/components/SmokeBackground";
 import ImpactPulse from "@/components/ImpactPulse";
@@ -26,6 +26,53 @@ import {
   AlertIcon,
   ActivityIcon,
 } from "@/components/Icons";
+
+/* ─── Types ─────────────────────────────────────────────── */
+interface RealtimeData {
+  aqi: number;
+  pm25: number;
+  pm10?: number;
+  ozone?: number;
+  temperature: number;
+  humidity: number;
+  windSpeed: number;
+  windDirection: number;
+  visibility: number;
+  category: string;
+  color: string;
+  source: string;
+  location: { lat: number; lon: number };
+  timestamp: string;
+}
+
+interface ForecastPoint {
+  hour: string;
+  strain: number;
+  aqi: number;
+}
+
+interface Recommendation {
+  id: string;
+  text: string;
+  severity: 'safe' | 'warn' | 'hazard';
+  icon?: React.ReactNode;
+}
+
+interface RiskData {
+  profileId: string;
+  score: number;
+  level: 'low' | 'moderate' | 'high';
+  aqi: number;
+  contributingFactors: {
+    pm25: number;
+    temperature: number;
+    humidity: number;
+    wind: number;
+  };
+  forecast: ForecastPoint[];
+  recommendations: Recommendation[];
+  timestamp: string;
+}
 
 /* ─── Section Wrapper ───────────────────────────────────── */
 function Section({
@@ -125,279 +172,29 @@ const profiles: Profile[] = [
   { id: "infant", label: "Infant", icon: <InfantIcon size={14} /> },
 ];
 
-interface ProfileConfig {
-  score: number;
-  aqi: number;
-  color: string;
-  glow: string;
-  label: string;
-  bgTint: string;
-  recommendations: {
-    id: string;
-    icon: React.ReactNode;
-    text: string;
-    severity: "safe" | "warn" | "hazard";
-  }[];
-  forecast: { hour: string; strain: number; aqi: number }[];
-  cards: {
-    title: string;
-    value: string;
-    unit?: string;
-    subtitle: string;
-    icon: React.ReactNode;
-    accentColor: string;
-  }[];
-}
-
-const profileData: Record<string, ProfileConfig> = {
-  asthma: {
-    score: 72,
-    aqi: 168,
-    color: "var(--accent-hazard)",
-    glow: "var(--accent-hazard-glow)",
-    label:
-      "Elevated PM2.5 levels may trigger bronchospasm. Consider staying indoors with air filtration active.",
-    bgTint: "rgba(255,107,44,0.02)",
-    recommendations: [
-      {
-        id: "a1",
-        icon: <MaskIcon size={14} color="var(--accent-hazard)" />,
-        text: "Wear an N95 mask if going outdoors. Current particulate levels exceed safe thresholds for sensitive airways.",
-        severity: "hazard",
-      },
-      {
-        id: "a2",
-        icon: <HomeIcon size={14} color="var(--accent-warn)" />,
-        text: "Keep windows sealed and run HEPA filtration. Indoor AQI can be 60% lower with proper sealing.",
-        severity: "warn",
-      },
-      {
-        id: "a3",
-        icon: <ShieldIcon size={14} color="var(--accent-safe)" />,
-        text: "Have rescue inhaler accessible. Schedule non-urgent outdoor activities for early morning when AQI typically dips.",
-        severity: "safe",
-      },
-    ],
-    forecast: [
-      { hour: "Now", strain: 72, aqi: 168 },
-      { hour: "1h", strain: 75, aqi: 175 },
-      { hour: "2h", strain: 80, aqi: 182 },
-      { hour: "3h", strain: 85, aqi: 195 },
-      { hour: "4h", strain: 82, aqi: 188 },
-      { hour: "5h", strain: 78, aqi: 178 },
-      { hour: "6h", strain: 70, aqi: 160 },
-      { hour: "7h", strain: 62, aqi: 142 },
-      { hour: "8h", strain: 55, aqi: 128 },
-      { hour: "9h", strain: 48, aqi: 112 },
-      { hour: "10h", strain: 42, aqi: 98 },
-      { hour: "11h", strain: 38, aqi: 88 },
-      { hour: "12h", strain: 35, aqi: 82 },
-    ],
-    cards: [
-      {
-        title: "PM2.5",
-        value: "58.4",
-        unit: "µg/m³",
-        subtitle: "4.8× above WHO guideline",
-        icon: <WindIcon size={14} color="var(--accent-hazard)" />,
-        accentColor: "var(--accent-hazard)",
-      },
-      {
-        title: "Temperature",
-        value: "34",
-        unit: "°C",
-        subtitle: "Heat compounds respiratory strain",
-        icon: <ThermometerIcon size={14} color="var(--accent-warn)" />,
-        accentColor: "var(--accent-warn)",
-      },
-      {
-        title: "Humidity",
-        value: "28",
-        unit: "%",
-        subtitle: "Low humidity dries airways",
-        icon: <DropletIcon size={14} color="var(--accent-safe)" />,
-        accentColor: "var(--accent-safe)",
-      },
-      {
-        title: "Visibility",
-        value: "3.2",
-        unit: "km",
-        subtitle: "Smoke haze reducing visibility",
-        icon: <EyeIcon size={14} color="var(--accent-warn)" />,
-        accentColor: "var(--accent-warn)",
-      },
-    ],
-  },
-  elderly: {
-    score: 58,
-    aqi: 132,
-    color: "var(--accent-warn)",
-    glow: "var(--accent-warn-glow)",
-    label:
-      "Moderate cardiovascular strain expected. Limit outdoor exertion and stay hydrated in climate-controlled spaces.",
-    bgTint: "rgba(245,183,49,0.02)",
-    recommendations: [
-      {
-        id: "e1",
-        icon: <AlertIcon size={14} color="var(--accent-warn)" />,
-        text: "Avoid strenuous outdoor activity. Smoke particles increase cardiovascular event risk in older adults by ~30%.",
-        severity: "warn",
-      },
-      {
-        id: "e2",
-        icon: <HomeIcon size={14} color="var(--accent-safe)" />,
-        text: "Stay in air-conditioned spaces. Monitor blood pressure more frequently during poor AQI days.",
-        severity: "safe",
-      },
-      {
-        id: "e3",
-        icon: <DropletIcon size={14} color="var(--accent-safe)" />,
-        text: "Increase fluid intake to maintain mucosal hydration. Target 2L minimum during smoke events.",
-        severity: "safe",
-      },
-    ],
-    forecast: [
-      { hour: "Now", strain: 58, aqi: 132 },
-      { hour: "1h", strain: 62, aqi: 140 },
-      { hour: "2h", strain: 65, aqi: 148 },
-      { hour: "3h", strain: 68, aqi: 155 },
-      { hour: "4h", strain: 66, aqi: 150 },
-      { hour: "5h", strain: 60, aqi: 138 },
-      { hour: "6h", strain: 52, aqi: 120 },
-      { hour: "7h", strain: 45, aqi: 105 },
-      { hour: "8h", strain: 40, aqi: 92 },
-      { hour: "9h", strain: 35, aqi: 82 },
-      { hour: "10h", strain: 32, aqi: 75 },
-      { hour: "11h", strain: 30, aqi: 70 },
-      { hour: "12h", strain: 28, aqi: 65 },
-    ],
-    cards: [
-      {
-        title: "PM2.5",
-        value: "42.1",
-        unit: "µg/m³",
-        subtitle: "3.5× above WHO guideline",
-        icon: <WindIcon size={14} color="var(--accent-warn)" />,
-        accentColor: "var(--accent-warn)",
-      },
-      {
-        title: "Temperature",
-        value: "31",
-        unit: "°C",
-        subtitle: "Moderate heat stress advisory",
-        icon: <ThermometerIcon size={14} color="var(--accent-warn)" />,
-        accentColor: "var(--accent-warn)",
-      },
-      {
-        title: "Humidity",
-        value: "35",
-        unit: "%",
-        subtitle: "Below comfort threshold",
-        icon: <DropletIcon size={14} color="var(--accent-safe)" />,
-        accentColor: "var(--accent-safe)",
-      },
-      {
-        title: "Visibility",
-        value: "5.1",
-        unit: "km",
-        subtitle: "Light haze conditions",
-        icon: <EyeIcon size={14} color="var(--accent-safe)" />,
-        accentColor: "var(--accent-safe)",
-      },
-    ],
-  },
-  infant: {
-    score: 85,
-    aqi: 205,
-    color: "var(--accent-hazard)",
-    glow: "var(--accent-hazard-glow)",
-    label:
-      "Critical exposure risk for developing lungs. Indoor air purification strongly recommended. Avoid any outdoor time.",
-    bgTint: "rgba(255,107,44,0.03)",
-    recommendations: [
-      {
-        id: "i1",
-        icon: <AlertIcon size={14} color="var(--accent-hazard)" />,
-        text: "Do not take infants outdoors. Developing lungs are 6× more susceptible to fine particulate damage.",
-        severity: "hazard",
-      },
-      {
-        id: "i2",
-        icon: <MaskIcon size={14} color="var(--accent-hazard)" />,
-        text: "N95 masks are NOT designed for infants. Rely entirely on environmental controls and HEPA filtration.",
-        severity: "hazard",
-      },
-      {
-        id: "i3",
-        icon: <HomeIcon size={14} color="var(--accent-warn)" />,
-        text: "Seal nursery windows with damp towels if no air purifier available. Monitor for coughing or labored breathing.",
-        severity: "warn",
-      },
-      {
-        id: "i4",
-        icon: <ShieldIcon size={14} color="var(--accent-safe)" />,
-        text: "Consult pediatrician if respiratory rate exceeds 40 breaths/min during smoke events.",
-        severity: "safe",
-      },
-    ],
-    forecast: [
-      { hour: "Now", strain: 85, aqi: 205 },
-      { hour: "1h", strain: 88, aqi: 215 },
-      { hour: "2h", strain: 92, aqi: 228 },
-      { hour: "3h", strain: 95, aqi: 240 },
-      { hour: "4h", strain: 90, aqi: 220 },
-      { hour: "5h", strain: 85, aqi: 200 },
-      { hour: "6h", strain: 78, aqi: 180 },
-      { hour: "7h", strain: 70, aqi: 158 },
-      { hour: "8h", strain: 62, aqi: 140 },
-      { hour: "9h", strain: 55, aqi: 125 },
-      { hour: "10h", strain: 50, aqi: 115 },
-      { hour: "11h", strain: 45, aqi: 105 },
-      { hour: "12h", strain: 42, aqi: 98 },
-    ],
-    cards: [
-      {
-        title: "PM2.5",
-        value: "78.2",
-        unit: "µg/m³",
-        subtitle: "6.5× above WHO guideline",
-        icon: <WindIcon size={14} color="var(--accent-hazard)" />,
-        accentColor: "var(--accent-hazard)",
-      },
-      {
-        title: "Temperature",
-        value: "36",
-        unit: "°C",
-        subtitle: "Heat amplifies particulate risk",
-        icon: <ThermometerIcon size={14} color="var(--accent-hazard)" />,
-        accentColor: "var(--accent-hazard)",
-      },
-      {
-        title: "Humidity",
-        value: "22",
-        unit: "%",
-        subtitle: "Critically dry — humidifier advised",
-        icon: <DropletIcon size={14} color="var(--accent-warn)" />,
-        accentColor: "var(--accent-warn)",
-      },
-      {
-        title: "Visibility",
-        value: "1.8",
-        unit: "km",
-        subtitle: "Dense smoke — hazardous conditions",
-        icon: <EyeIcon size={14} color="var(--accent-hazard)" />,
-        accentColor: "var(--accent-hazard)",
-      },
-    ],
-  },
+// Map severity to icon
+const severityIcon: Record<'safe' | 'warn' | 'hazard', React.ReactNode> = {
+  safe: <ShieldIcon size={14} color="var(--accent-safe)" />,
+  warn: <AlertIcon size={14} color="var(--accent-warn)" />,
+  hazard: <MaskIcon size={14} color="var(--accent-hazard)" />,
 };
 
 /* ─── Stats for hero ────────────────────────────────────── */
-function HeroStats({ config }: { config: ProfileConfig }) {
+function HeroStats({ 
+  aqi, 
+  pm25, 
+  visibility, 
+  color 
+}: { 
+  aqi: number; 
+  pm25: number; 
+  visibility: number; 
+  color: string;
+}) {
   const stats = [
-    { label: "AQI", value: config.aqi.toString(), color: config.color },
-    { label: "PM2.5", value: config.cards[0].value, color: config.color },
-    { label: "Visibility", value: config.cards[3].value + " km", color: "var(--text-secondary)" },
+    { label: "AQI", value: aqi.toString(), color },
+    { label: "PM2.5", value: pm25.toFixed(1), color },
+    { label: "Visibility", value: visibility.toFixed(1) + " km", color: "var(--text-secondary)" },
   ];
 
   return (
@@ -425,17 +222,207 @@ function HeroStats({ config }: { config: ProfileConfig }) {
   );
 }
 
+/* ─── Loading State ─────────────────────────────────────── */
+function LoadingState() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-16 h-16 border-4 border-accent-hazard border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-text-secondary">Loading real-time air quality data...</p>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Error State ───────────────────────────────────────── */
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center max-w-md px-4">
+        <div className="w-16 h-16 bg-accent-hazard/10 rounded-full flex items-center justify-center mx-auto mb-4">
+          <AlertIcon size={24} color="var(--accent-hazard)" />
+        </div>
+        <h2 className="text-xl font-semibold text-text-primary mb-2">Unable to load data</h2>
+        <p className="text-text-secondary mb-6">{message}</p>
+        <button
+          onClick={onRetry}
+          className="glass-card px-6 py-3 text-sm font-medium text-text-primary hover:bg-white/5 transition-colors"
+        >
+          Try Again
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Page Component ────────────────────────────────────── */
-export default function HomePage() {
+export default function DashboardPage() {
   const [activeProfile, setActiveProfile] = useState("asthma");
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [activeSection] = useState("hero");
+  const [activeSection, setActiveSection] = useState("hero");
+  const [realtimeData, setRealtimeData] = useState<RealtimeData | null>(null);
+  const [riskData, setRiskData] = useState<RiskData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const config = useMemo(() => profileData[activeProfile], [activeProfile]);
-
-  const handleProfileChange = useCallback((id: string) => {
-    setActiveProfile(id);
+  // Fetch real-time AQI data
+  const fetchRealtimeData = useCallback(async () => {
+    try {
+      const response = await fetch('/api/aqi');
+      if (!response.ok) {
+        throw new Error('Failed to fetch air quality data');
+      }
+      const data = await response.json();
+      setRealtimeData(data);
+      return data;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      return null;
+    }
   }, []);
+
+  // Fetch risk data for current profile
+  const fetchRiskData = useCallback(async (profileId: string) => {
+    try {
+      const response = await fetch(`/api/risk/${profileId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch risk data');
+      }
+      const data = await response.json();
+      
+      // Add icons to recommendations
+      if (data.recommendations) {
+        data.recommendations = data.recommendations.map((rec: Recommendation) => ({
+          ...rec,
+          icon: severityIcon[rec.severity],
+        }));
+      }
+      
+      setRiskData(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    }
+  }, []);
+
+  // Initial data fetch
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      setError(null);
+      
+      const realtime = await fetchRealtimeData();
+      if (realtime) {
+        await fetchRiskData(activeProfile);
+      }
+      
+      setLoading(false);
+    };
+
+    loadData();
+  }, [fetchRealtimeData, fetchRiskData, activeProfile]);
+
+  // Handle profile change
+  const handleProfileChange = useCallback(async (id: string) => {
+    setActiveProfile(id);
+    setLoading(true);
+    await fetchRiskData(id);
+    setLoading(false);
+  }, [fetchRiskData]);
+
+  // Handle retry
+  const handleRetry = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    fetchRealtimeData().then((data) => {
+      if (data) {
+        fetchRiskData(activeProfile);
+      }
+      setLoading(false);
+    });
+  }, [activeProfile, fetchRealtimeData, fetchRiskData]);
+
+  // Track active section for sticky nav
+  useEffect(() => {
+    const observers = navItems.map((item) => {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              setActiveSection(item.id);
+            }
+          });
+        },
+        { threshold: 0.5 }
+      );
+
+      const element = document.getElementById(item.id);
+      if (element) observer.observe(element);
+
+      return observer;
+    });
+
+    return () => observers.forEach((observer) => observer.disconnect());
+  }, []);
+
+  if (loading) {
+    return <LoadingState />;
+  }
+
+  if (error || !realtimeData || !riskData) {
+    return <ErrorState message={error || 'Unable to load data'} onRetry={handleRetry} />;
+  }
+
+  // Determine colors based on risk score
+  const getScoreColor = (score: number) => {
+    if (score > 60) return "var(--accent-hazard)";
+    if (score > 30) return "var(--accent-warn)";
+    return "var(--accent-safe)";
+  };
+
+  const getScoreGlow = (score: number) => {
+    if (score > 60) return "var(--accent-hazard-glow)";
+    if (score > 30) return "var(--accent-warn-glow)";
+    return "var(--accent-safe-glow)";
+  };
+
+  const scoreColor = getScoreColor(riskData.score);
+  const scoreGlow = getScoreGlow(riskData.score);
+
+  // Prepare cards from realtime data
+  const cards = [
+    {
+      title: "PM2.5",
+      value: realtimeData.pm25.toFixed(1),
+      unit: "µg/m³",
+      subtitle: `${Math.min(100, Math.round((realtimeData.pm25 / 12) * 100))}% above WHO guideline`,
+      icon: <WindIcon size={14} color={scoreColor} />,
+      accentColor: scoreColor,
+    },
+    {
+      title: "Temperature",
+      value: realtimeData.temperature.toString(),
+      unit: "°C",
+      subtitle: realtimeData.temperature > 30 ? "Heat compounds respiratory strain" : "Moderate temperature",
+      icon: <ThermometerIcon size={14} color="var(--accent-warn)" />,
+      accentColor: "var(--accent-warn)",
+    },
+    {
+      title: "Humidity",
+      value: realtimeData.humidity.toString(),
+      unit: "%",
+      subtitle: realtimeData.humidity < 30 ? "Low humidity dries airways" : "Comfortable humidity",
+      icon: <DropletIcon size={14} color="var(--accent-safe)" />,
+      accentColor: "var(--accent-safe)",
+    },
+    {
+      title: "Visibility",
+      value: realtimeData.visibility.toFixed(1),
+      unit: "km",
+      subtitle: realtimeData.visibility < 5 ? "Smoke haze reducing visibility" : "Clear visibility",
+      icon: <EyeIcon size={14} color="var(--accent-warn)" />,
+      accentColor: "var(--accent-warn)",
+    },
+  ];
 
   const stagger = {
     container: {
@@ -449,11 +436,11 @@ export default function HomePage() {
 
   return (
     <>
-      <SmokeBackground aqi={config.aqi} />
+      <SmokeBackground aqi={realtimeData.aqi} />
 
       <motion.div
         className="fixed inset-0 pointer-events-none z-[1]"
-        animate={{ background: config.bgTint }}
+        animate={{ background: `${scoreColor}08` }}
         transition={{ duration: 0.8 }}
       />
 
@@ -461,9 +448,7 @@ export default function HomePage() {
         <Header />
         <StickyNav activeSection={activeSection} />
 
-        {/* ═══════════════════════════════════════════════════
-            SECTION 1 — HERO
-            ═══════════════════════════════════════════════════ */}
+        {/* SECTION 1 — HERO */}
         <section
           id="hero"
           className="relative min-h-[92vh] flex flex-col items-center justify-center px-5 md:px-8"
@@ -472,7 +457,7 @@ export default function HomePage() {
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
-              background: `radial-gradient(ellipse 60% 50% at 50% 40%, ${config.glow} 0%, transparent 70%)`,
+              background: `radial-gradient(ellipse 60% 50% at 50% 40%, ${scoreGlow} 0%, transparent 70%)`,
               opacity: 0.15,
               transition: "background 0.8s ease",
             }}
@@ -503,10 +488,10 @@ export default function HomePage() {
                 transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
               >
                 <ImpactPulse
-                  score={config.score}
-                  label={config.label}
-                  profileColor={config.color}
-                  profileGlow={config.glow}
+                  score={riskData.score}
+                  label={`${realtimeData.category} · AQI ${realtimeData.aqi} · ${riskData.level} risk for ${activeProfile}`}
+                  profileColor={scoreColor}
+                  profileGlow={scoreGlow}
                 />
               </motion.div>
             </AnimatePresence>
@@ -514,7 +499,12 @@ export default function HomePage() {
 
           {/* Quick stats under the pulse */}
           <motion.div className="relative z-10 mt-10">
-            <HeroStats config={config} />
+            <HeroStats 
+              aqi={realtimeData.aqi}
+              pm25={realtimeData.pm25}
+              visibility={realtimeData.visibility}
+              color={scoreColor}
+            />
           </motion.div>
 
           {/* Scroll indicator */}
@@ -546,14 +536,12 @@ export default function HomePage() {
           <div className="h-px bg-gradient-to-r from-transparent via-border-glass to-transparent" />
         </div>
 
-        {/* ═══════════════════════════════════════════════════
-            SECTION 2 — ENVIRONMENT DATA
-            ═══════════════════════════════════════════════════ */}
+        {/* SECTION 2 — ENVIRONMENT DATA */}
         <Section id="environment" className="py-20 md:py-28">
           <SectionHeader
             title="Environmental Conditions"
             subtitle="Real-time atmospheric readings affecting your health profile. Data refreshed every 60 seconds."
-            accent={config.color}
+            accent={scoreColor}
           />
 
           <motion.div
@@ -563,7 +551,7 @@ export default function HomePage() {
             whileInView="animate"
             viewport={{ once: true, margin: "-40px" }}
           >
-            {config.cards.map((card, i) => (
+            {cards.map((card, i) => (
               <DataCard
                 key={activeProfile + card.title}
                 title={card.title}
@@ -583,9 +571,7 @@ export default function HomePage() {
           <div className="h-px bg-gradient-to-r from-transparent via-border-glass to-transparent" />
         </div>
 
-        {/* ═══════════════════════════════════════════════════
-            SECTION 3 — SMOKE DENSITY MAP
-            ═══════════════════════════════════════════════════ */}
+        {/* SECTION 3 — SMOKE DENSITY MAP */}
         <Section id="map" className="py-20 md:py-28">
           <SectionHeader
             title="Smoke Density Map"
@@ -593,7 +579,7 @@ export default function HomePage() {
             accent="var(--accent-warn)"
           />
 
-          <ParticleMap aqi={config.aqi} />
+          <ParticleMap aqi={realtimeData.aqi} />
         </Section>
 
         {/* Divider */}
@@ -601,9 +587,7 @@ export default function HomePage() {
           <div className="h-px bg-gradient-to-r from-transparent via-border-glass to-transparent" />
         </div>
 
-        {/* ═══════════════════════════════════════════════════
-            SECTION 4 — HEALTH FORECAST
-            ═══════════════════════════════════════════════════ */}
+        {/* SECTION 4 — HEALTH FORECAST */}
         <Section id="forecast" className="py-20 md:py-28">
           <SectionHeader
             title="Health Forecast"
@@ -613,9 +597,9 @@ export default function HomePage() {
 
           <HealthForecast
             key={activeProfile + "-forecast"}
-            data={config.forecast}
-            accentColor={config.color}
-            accentGlow={config.glow}
+            data={riskData.forecast}
+            accentColor={scoreColor}
+            accentGlow={scoreGlow}
           />
 
           {/* Forecast insight card */}
@@ -629,22 +613,21 @@ export default function HomePage() {
             {[
               {
                 label: "Peak Strain",
-                value:
-                  Math.max(...config.forecast.map((f) => f.strain)).toString() + "%",
-                desc: "Expected in ~3 hours",
+                value: Math.max(...riskData.forecast.map((f) => f.strain)).toString() + "%",
+                desc: "Expected in next few hours",
                 color: "var(--accent-hazard)",
               },
               {
-                label: "Recovery Window",
-                value: "7–12h",
-                desc: "AQI expected to drop below 100",
-                color: "var(--accent-safe)",
+                label: "Current AQI",
+                value: realtimeData.aqi.toString(),
+                desc: realtimeData.category,
+                color: scoreColor,
               },
               {
                 label: "Trend",
-                value: "Improving",
-                desc: "Gradual decline through the evening",
-                color: "var(--accent-safe)",
+                value: riskData.forecast[riskData.forecast.length - 1].strain < riskData.forecast[0].strain ? "Improving" : "Worsening",
+                desc: "Based on 12-hour forecast",
+                color: riskData.forecast[riskData.forecast.length - 1].strain < riskData.forecast[0].strain ? "var(--accent-safe)" : "var(--accent-hazard)",
               },
             ].map((insight, i) => (
               <div
@@ -681,20 +664,18 @@ export default function HomePage() {
           <div className="h-px bg-gradient-to-r from-transparent via-border-glass to-transparent" />
         </div>
 
-        {/* ═══════════════════════════════════════════════════
-            SECTION 5 — SAFETY RECOMMENDATIONS
-            ═══════════════════════════════════════════════════ */}
+        {/* SECTION 5 — SAFETY RECOMMENDATIONS */}
         <Section id="safety" className="py-20 md:py-28">
           <SectionHeader
             title="Safety Recommendations"
             subtitle="Personalized guidance based on your health profile and current conditions."
-            accent={config.color}
+            accent={scoreColor}
           />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <RecommendationPanel
               key={activeProfile + "-recs"}
-              recommendations={config.recommendations}
+              recommendations={riskData.recommendations}
             />
 
             {/* Summary card */}
@@ -709,12 +690,9 @@ export default function HomePage() {
                 <div className="flex items-center gap-2 mb-4">
                   <div
                     className="w-8 h-8 rounded-md flex items-center justify-center"
-                    style={{ background: `${config.color}15` }}
+                    style={{ background: `${scoreColor}15` }}
                   >
-                    <ShieldIcon
-                      size={16}
-                      color={config.color}
-                    />
+                    <ShieldIcon size={16} color={scoreColor} />
                   </div>
                   <h4 className="text-sm font-medium text-text-primary">
                     Protection Summary
@@ -746,16 +724,16 @@ export default function HomePage() {
                       <span className="text-[11px] text-text-tertiary uppercase tracking-wider">
                         Mask Protection
                       </span>
-                      <span className="text-[11px] font-mono text-accent-warn">
-                        Recommended
+                      <span className="text-[11px] font-mono" style={{ color: realtimeData.aqi > 100 ? "var(--accent-warn)" : "var(--accent-safe)" }}>
+                        {realtimeData.aqi > 100 ? "Recommended" : "Optional"}
                       </span>
                     </div>
                     <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
                       <motion.div
                         className="h-full rounded-full"
-                        style={{ background: "var(--accent-warn)" }}
+                        style={{ background: realtimeData.aqi > 100 ? "var(--accent-warn)" : "var(--accent-safe)" }}
                         initial={{ width: 0 }}
-                        whileInView={{ width: "45%" }}
+                        whileInView={{ width: realtimeData.aqi > 100 ? "45%" : "15%" }}
                         viewport={{ once: true }}
                         transition={{ duration: 1, delay: 0.4 }}
                       />
@@ -767,14 +745,16 @@ export default function HomePage() {
                       <span className="text-[11px] text-text-tertiary uppercase tracking-wider">
                         Outdoor Safety
                       </span>
-                      <span className="text-[11px] font-mono text-accent-hazard">Unsafe</span>
+                      <span className="text-[11px] font-mono" style={{ color: realtimeData.aqi > 150 ? "var(--accent-hazard)" : realtimeData.aqi > 50 ? "var(--accent-warn)" : "var(--accent-safe)" }}>
+                        {realtimeData.aqi > 150 ? "Unsafe" : realtimeData.aqi > 50 ? "Caution" : "Safe"}
+                      </span>
                     </div>
                     <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
                       <motion.div
                         className="h-full rounded-full"
-                        style={{ background: "var(--accent-hazard)" }}
+                        style={{ background: realtimeData.aqi > 150 ? "var(--accent-hazard)" : realtimeData.aqi > 50 ? "var(--accent-warn)" : "var(--accent-safe)" }}
                         initial={{ width: 0 }}
-                        whileInView={{ width: "22%" }}
+                        whileInView={{ width: realtimeData.aqi > 150 ? "22%" : realtimeData.aqi > 50 ? "55%" : "88%" }}
                         viewport={{ once: true }}
                         transition={{ duration: 1, delay: 0.5 }}
                       />
@@ -785,20 +765,18 @@ export default function HomePage() {
 
               <div className="mt-6 pt-4 border-t border-border-subtle">
                 <p className="text-[11px] text-text-tertiary leading-relaxed">
-                  Last updated 2 minutes ago · Based on{" "}
+                  Last updated {new Date(realtimeData.timestamp).toLocaleTimeString()} · Based on{" "}
                   <span className="text-text-secondary">
                     {profiles.find((p) => p.id === activeProfile)?.label}
                   </span>{" "}
-                  profile
+                  profile · Source: {realtimeData.source}
                 </p>
               </div>
             </motion.div>
           </div>
         </Section>
 
-        {/* ═══════════════════════════════════════════════════
-            FOOTER
-            ═══════════════════════════════════════════════════ */}
+        {/* FOOTER */}
         <footer className="relative py-12 px-5 md:px-8 border-t border-border-subtle">
           <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -834,18 +812,16 @@ export default function HomePage() {
         <div className="h-16" />
       </div>
 
-      {/* ═══════════════════════════════════════════════════
-          MOBILE BOTTOM SHEET (unchanged)
-          ═══════════════════════════════════════════════════ */}
+      {/* MOBILE BOTTOM SHEET */}
       <MobileBottomSheet
         isOpen={sheetOpen}
         onClose={() => setSheetOpen(false)}
         title="Detailed Analysis"
       >
         <div className="flex flex-col gap-5">
-          <ParticleMap aqi={config.aqi} />
+          <ParticleMap aqi={realtimeData.aqi} />
           <div className="grid grid-cols-2 gap-3">
-            {config.cards.map((card, i) => (
+            {cards.map((card, i) => (
               <DataCard
                 key={activeProfile + card.title + "-sheet"}
                 title={card.title}
@@ -859,11 +835,11 @@ export default function HomePage() {
             ))}
           </div>
           <HealthForecast
-            data={config.forecast}
-            accentColor={config.color}
-            accentGlow={config.glow}
+            data={riskData.forecast}
+            accentColor={scoreColor}
+            accentGlow={scoreGlow}
           />
-          <RecommendationPanel recommendations={config.recommendations} />
+          <RecommendationPanel recommendations={riskData.recommendations} />
         </div>
       </MobileBottomSheet>
     </>
