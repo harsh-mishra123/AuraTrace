@@ -1,20 +1,20 @@
 require('dotenv').config({ path: '.env.local' });
 
 async function testAPI() {
-  console.log('🔍 Testing OpenWeatherMap API...');
+  console.log(' Testing OpenWeatherMap API...');
   console.log('=================================');
   
   // Get API key from environment
   const apiKey = process.env.OPENWEATHER_API_KEY;
   
   if (!apiKey) {
-    console.log('❌ No API key found in .env.local');
+    console.log(' No API key found in .env.local');
     console.log('Please add OPENWEATHER_API_KEY to your .env.local file');
     return;
   }
   
-  console.log('📝 API Key found:', apiKey.substring(0, 5) + '...' + apiKey.substring(apiKey.length - 5));
-  console.log('📝 API Key length:', apiKey.length);
+  console.log('API Key found:', apiKey.substring(0, 5) + '...' + apiKey.substring(apiKey.length - 5));
+  console.log(' API Key length:', apiKey.length);
   
   // Test 1: Current Weather API
   console.log('\n1️⃣ Testing Current Weather API...');
