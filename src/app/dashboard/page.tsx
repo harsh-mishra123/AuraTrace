@@ -12,6 +12,8 @@ import DataCard from "@/components/DataCard";
 import RecommendationPanel from "@/components/RecommendationPanel";
 import MobileBottomSheet from "@/components/MobileBottomSheet";
 import Header from "@/components/Header";
+import { useLocation } from "@/hooks/useLocation";
+import { useRealtimeData, useRiskProfile } from "@/hooks/useRealtimeData";
 import {
   LungIcon,
   ElderlyIcon,
@@ -28,23 +30,6 @@ import {
 } from "@/components/Icons";
 
 /* ─── Types ─────────────────────────────────────────────── */
-interface RealtimeData {
-  aqi: number;
-  pm25: number;
-  pm10?: number;
-  ozone?: number;
-  temperature: number;
-  humidity: number;
-  windSpeed: number;
-  windDirection: number;
-  visibility: number;
-  category: string;
-  color: string;
-  source: string;
-  location: { lat: number; lon: number };
-  timestamp: string;
-}
-
 interface ForecastPoint {
   hour: string;
   strain: number;
@@ -56,22 +41,6 @@ interface Recommendation {
   text: string;
   severity: 'safe' | 'warn' | 'hazard';
   icon?: React.ReactNode;
-}
-
-interface RiskData {
-  profileId: string;
-  score: number;
-  level: 'low' | 'moderate' | 'high';
-  aqi: number;
-  contributingFactors: {
-    pm25: number;
-    temperature: number;
-    humidity: number;
-    wind: number;
-  };
-  forecast: ForecastPoint[];
-  recommendations: Recommendation[];
-  timestamp: string;
 }
 
 /* ─── Section Wrapper ───────────────────────────────────── */
@@ -179,6 +148,21 @@ const severityIcon: Record<'safe' | 'warn' | 'hazard', React.ReactNode> = {
   hazard: <MaskIcon size={14} color="var(--accent-hazard)" />,
 };
 
+/* ─── Location Indicator Component ──────────────────────── */
+function LocationIndicator({ city, country, loading }: { city?: string; country?: string; loading: boolean }) {
+  if (loading) return <div className="text-xs text-text-tertiary animate-pulse">Detecting location...</div>;
+  
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-text-tertiary bg-white/5 px-3 py-1.5 rounded-full">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+        <circle cx="12" cy="9" r="2.5" fill="currentColor" />
+      </svg>
+      <span>{city || 'Your location'}{country && `, ${country}`}</span>
+    </div>
+  );
+}
+
 /* ─── Stats for hero ────────────────────────────────────── */
 function HeroStats({ 
   aqi, 
@@ -260,86 +244,23 @@ export default function DashboardPage() {
   const [activeProfile, setActiveProfile] = useState("asthma");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("hero");
-  const [realtimeData, setRealtimeData] = useState<RealtimeData | null>(null);
-  const [riskData, setRiskData] = useState<RiskData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // Fetch real-time AQI data
-  const fetchRealtimeData = useCallback(async () => {
-    try {
-      const response = await fetch('/api/aqi');
-      if (!response.ok) {
-        throw new Error('Failed to fetch air quality data');
-      }
-      const data = await response.json();
-      setRealtimeData(data);
-      return data;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-      return null;
-    }
-  }, []);
-
-  // Fetch risk data for current profile
-  const fetchRiskData = useCallback(async (profileId: string) => {
-    try {
-      const response = await fetch(`/api/risk/${profileId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch risk data');
-      }
-      const data = await response.json();
-      
-      // Add icons to recommendations
-      if (data.recommendations) {
-        data.recommendations = data.recommendations.map((rec: Recommendation) => ({
-          ...rec,
-          icon: severityIcon[rec.severity],
-        }));
-      }
-      
-      setRiskData(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    }
-  }, []);
-
-  // Initial data fetch
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      setError(null);
-      
-      const realtime = await fetchRealtimeData();
-      if (realtime) {
-        await fetchRiskData(activeProfile);
-      }
-      
-      setLoading(false);
-    };
-
-    loadData();
-  }, [fetchRealtimeData, fetchRiskData, activeProfile]);
+  // Get user location
+  const location = useLocation();
+  
+  // Fetch data based on location
+  const realtimeData = useRealtimeData();
+  const riskProfile = useRiskProfile(activeProfile);
 
   // Handle profile change
-  const handleProfileChange = useCallback(async (id: string) => {
+  const handleProfileChange = useCallback((id: string) => {
     setActiveProfile(id);
-    setLoading(true);
-    await fetchRiskData(id);
-    setLoading(false);
-  }, [fetchRiskData]);
+  }, []);
 
   // Handle retry
   const handleRetry = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    fetchRealtimeData().then((data) => {
-      if (data) {
-        fetchRiskData(activeProfile);
-      }
-      setLoading(false);
-    });
-  }, [activeProfile, fetchRealtimeData, fetchRiskData]);
+    window.location.reload();
+  }, []);
 
   // Track active section for sticky nav
   useEffect(() => {
@@ -364,12 +285,24 @@ export default function DashboardPage() {
     return () => observers.forEach((observer) => observer.disconnect());
   }, []);
 
-  if (loading) {
+  // Show loading state
+  if (location.loading || realtimeData.loading || (riskProfile.loading && !riskProfile.data)) {
     return <LoadingState />;
   }
 
-  if (error || !realtimeData || !riskData) {
-    return <ErrorState message={error || 'Unable to load data'} onRetry={handleRetry} />;
+  // Show error state
+  if (location.error || realtimeData.error || riskProfile.error) {
+    return (
+      <ErrorState 
+        message={location.error || realtimeData.error || riskProfile.error || 'Unable to load data'} 
+        onRetry={handleRetry} 
+      />
+    );
+  }
+
+  // Ensure we have data
+  if (!realtimeData.aqi || !riskProfile.data) {
+    return <ErrorState message="No data available" onRetry={handleRetry} />;
   }
 
   // Determine colors based on risk score
@@ -385,8 +318,8 @@ export default function DashboardPage() {
     return "var(--accent-safe-glow)";
   };
 
-  const scoreColor = getScoreColor(riskData.score);
-  const scoreGlow = getScoreGlow(riskData.score);
+  const scoreColor = getScoreColor(riskProfile.data.score);
+  const scoreGlow = getScoreGlow(riskProfile.data.score);
 
   // Prepare cards from realtime data
   const cards = [
@@ -446,6 +379,16 @@ export default function DashboardPage() {
 
       <div className="relative z-10 min-h-screen">
         <Header />
+        
+        {/* Location indicator - positioned near header */}
+        <div className="absolute top-20 right-5 md:right-8 z-20">
+          <LocationIndicator 
+            city={realtimeData.location?.city} 
+            country={realtimeData.location?.country} 
+            loading={location.loading} 
+          />
+        </div>
+
         <StickyNav activeSection={activeSection} />
 
         {/* SECTION 1 — HERO */}
@@ -488,8 +431,8 @@ export default function DashboardPage() {
                 transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
               >
                 <ImpactPulse
-                  score={riskData.score}
-                  label={`${realtimeData.category} · AQI ${realtimeData.aqi} · ${riskData.level} risk for ${activeProfile}`}
+                  score={riskProfile.data.score}
+                  label={`${realtimeData.category} · AQI ${realtimeData.aqi} · ${riskProfile.data.level} risk for ${activeProfile}`}
                   profileColor={scoreColor}
                   profileGlow={scoreGlow}
                 />
@@ -597,7 +540,7 @@ export default function DashboardPage() {
 
           <HealthForecast
             key={activeProfile + "-forecast"}
-            data={riskData.forecast}
+            data={riskProfile.data.forecast}
             accentColor={scoreColor}
             accentGlow={scoreGlow}
           />
@@ -613,7 +556,7 @@ export default function DashboardPage() {
             {[
               {
                 label: "Peak Strain",
-                value: Math.max(...riskData.forecast.map((f) => f.strain)).toString() + "%",
+                value: Math.max(...riskProfile.data.forecast.map((f: ForecastPoint) => f.strain)).toString() + "%",
                 desc: "Expected in next few hours",
                 color: "var(--accent-hazard)",
               },
@@ -625,9 +568,9 @@ export default function DashboardPage() {
               },
               {
                 label: "Trend",
-                value: riskData.forecast[riskData.forecast.length - 1].strain < riskData.forecast[0].strain ? "Improving" : "Worsening",
+                value: riskProfile.data.forecast[riskProfile.data.forecast.length - 1].strain < riskProfile.data.forecast[0].strain ? "Improving" : "Worsening",
                 desc: "Based on 12-hour forecast",
-                color: riskData.forecast[riskData.forecast.length - 1].strain < riskData.forecast[0].strain ? "var(--accent-safe)" : "var(--accent-hazard)",
+                color: riskProfile.data.forecast[riskProfile.data.forecast.length - 1].strain < riskProfile.data.forecast[0].strain ? "var(--accent-safe)" : "var(--accent-hazard)",
               },
             ].map((insight, i) => (
               <div
@@ -675,7 +618,10 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <RecommendationPanel
               key={activeProfile + "-recs"}
-              recommendations={riskData.recommendations}
+              recommendations={riskProfile.data.recommendations.map((rec: Recommendation) => ({
+                ...rec,
+                icon: severityIcon[rec.severity],
+              }))}
             />
 
             {/* Summary card */}
@@ -765,11 +711,10 @@ export default function DashboardPage() {
 
               <div className="mt-6 pt-4 border-t border-border-subtle">
                 <p className="text-[11px] text-text-tertiary leading-relaxed">
-                  Last updated {new Date(realtimeData.timestamp).toLocaleTimeString()} · Based on{" "}
-                  <span className="text-text-secondary">
-                    {profiles.find((p) => p.id === activeProfile)?.label}
-                  </span>{" "}
-                  profile · Source: {realtimeData.source}
+                  Last updated {new Date(realtimeData.timestamp).toLocaleTimeString()} · 
+                  Based on {profiles.find((p) => p.id === activeProfile)?.label} profile · 
+                  Source: {realtimeData.source}
+                  {realtimeData.location?.city && ` · ${realtimeData.location.city}`}
                 </p>
               </div>
             </motion.div>
@@ -835,11 +780,16 @@ export default function DashboardPage() {
             ))}
           </div>
           <HealthForecast
-            data={riskData.forecast}
+            data={riskProfile.data.forecast}
             accentColor={scoreColor}
             accentGlow={scoreGlow}
           />
-          <RecommendationPanel recommendations={riskData.recommendations} />
+          <RecommendationPanel 
+            recommendations={riskProfile.data.recommendations.map((rec: Recommendation) => ({
+              ...rec,
+              icon: severityIcon[rec.severity],
+            }))} 
+          />
         </div>
       </MobileBottomSheet>
     </>
