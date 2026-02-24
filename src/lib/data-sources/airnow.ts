@@ -1,4 +1,3 @@
-// src/lib/data-sources/airnow.ts
 export class AirNowClient {
   private apiKey: string;
   private baseUrl = 'http://www.airnowapi.org/aq';
@@ -8,32 +7,42 @@ export class AirNowClient {
   }
 
   async getCurrentConditions(lat: number, lon: number) {
+    // Skip if no valid API key
+    if (!this.apiKey || this.apiKey === 'your_key_here' || this.apiKey.length < 10) {
+      return null;
+    }
+
     const url = `${this.baseUrl}/observation/latLong/current/?format=application/json&latitude=${lat}&longitude=${lon}&distance=25&API_KEY=${this.apiKey}`;
     
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
-      
-      if (!data || data.length === 0) {
-        console.warn('No AirNow data for location');
-        return null;
-      }
+    // SUPER SHORT TIMEOUT - 2 seconds max
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-      // AirNow returns array of pollutants [citation:3]
+    try {
+      const response = await fetch(url, { 
+        signal: controller.signal,
+        next: { revalidate: 300 }
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) return null;
+      
+      const data = await response.json();
+      if (!data || data.length === 0) return null;
+
       const pm25 = data.find((d: any) => d.ParameterName === 'PM2.5');
-      const pm10 = data.find((d: any) => d.ParameterName === 'PM10');
-      const o3 = data.find((d: any) => d.ParameterName === 'O3');
+      
+      if (!pm25) return null;
 
       return {
-        aqi: pm25?.AQI,
-        pm25: pm25?.AQI, // Note: AirNow gives AQI, not raw concentration
-        pm10: pm10?.AQI,
-        ozone: o3?.AQI,
-        timestamp: new Date().toISOString(),
+        aqi: pm25.AQI,
+        pm25: pm25.AQI,
         source: 'airnow',
       };
     } catch (error) {
-      console.error('AirNow API error:', error);
+      clearTimeout(timeoutId);
+      // COMPLETELY SILENT - no console logs
       return null;
     }
   }

@@ -11,77 +11,97 @@ interface Location {
 
 export function useLocation() {
   const [location, setLocation] = useState<Location>({
-    lat: 40.7128, // Default to NYC
-    lon: -74.0060,
+    lat: 28.6139, // Default to Delhi
+    lon: 77.2090,
+    city: "Delhi",
+    country: "IN",
     loading: true,
     error: null,
   });
 
   useEffect(() => {
+    // Check if browser supports geolocation
     if (!navigator.geolocation) {
+      console.log('Geolocation not supported, using default location (Delhi)');
       setLocation(prev => ({
         ...prev,
         loading: false,
-        error: 'Geolocation is not supported by your browser',
       }));
       return;
     }
 
+    console.log('Requesting location permission...');
+
+    // Request location
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
+      (position) => {
         const { latitude, longitude } = position.coords;
+        console.log('Location granted:', latitude, longitude);
         
-        // Optional: Get city name from coordinates (reverse geocoding)
-        try {
-          const response = await fetch(
-            `https://api.openweathermap.org/geo/1.0/reverse?lat=${latitude}&lon=${longitude}&limit=1&appid=${process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY}`
-          );
-          const data = await response.json();
-          const city = data[0]?.name;
-          const country = data[0]?.country;
-          
-          setLocation({
-            lat: latitude,
-            lon: longitude,
-            city,
-            country,
-            loading: false,
-            error: null,
-          });
-        } catch (error) {
-          // Still set location even if reverse geocoding fails
-          setLocation({
-            lat: latitude,
-            lon: longitude,
-            loading: false,
-            error: null,
-          });
+        // Determine city based on coordinates
+        let city = "Your location";
+        
+        // Delhi region
+        if (latitude > 28.4 && latitude < 29 && longitude > 76.8 && longitude < 77.5) {
+          city = "Delhi";
         }
+        // Mumbai region
+        else if (latitude > 18.9 && latitude < 19.3 && longitude > 72.8 && longitude < 73.0) {
+          city = "Mumbai";
+        }
+        // Bangalore region
+        else if (latitude > 12.9 && latitude < 13.1 && longitude > 77.5 && longitude < 77.7) {
+          city = "Bengaluru";
+        }
+        // Chennai region
+        else if (latitude > 13.0 && latitude < 13.2 && longitude > 80.2 && longitude < 80.3) {
+          city = "Chennai";
+        }
+        // Kolkata region
+        else if (latitude > 22.5 && latitude < 22.6 && longitude > 88.3 && longitude < 88.4) {
+          city = "Kolkata";
+        }
+        
+        setLocation({
+          lat: latitude,
+          lon: longitude,
+          city: city,
+          country: "IN",
+          loading: false,
+          error: null,
+        });
       },
       (error) => {
-        let errorMessage = 'Failed to get your location';
-        
+        // Handle different error types
+        let errorMessage = '';
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            errorMessage = 'Please allow location access to get local air quality data';
+            errorMessage = 'Location permission denied. Using Delhi as default.';
+            console.warn('User denied location permission');
             break;
           case error.POSITION_UNAVAILABLE:
-            errorMessage = 'Location information is unavailable';
+            errorMessage = 'Location unavailable. Using Delhi as default.';
             break;
           case error.TIMEOUT:
-            errorMessage = 'Location request timed out';
+            errorMessage = 'Location request timed out. Using Delhi as default.';
             break;
         }
         
-        setLocation(prev => ({
-          ...prev,
+        console.warn(errorMessage);
+        
+        // Use default Delhi location
+        setLocation({
+          lat: 28.6139,
+          lon: 77.2090,
+          city: "Delhi",
+          country: "IN",
           loading: false,
           error: errorMessage,
-        }));
+        });
       },
       {
         enableHighAccuracy: true,
-        timeout: 5000,
+        timeout: 10000,
         maximumAge: 0,
       }
     );
