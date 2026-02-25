@@ -22,7 +22,7 @@ export async function GET(
     const lat = parseFloat(searchParams.get('lat') || process.env.DEFAULT_LAT || '40.7128');
     const lon = parseFloat(searchParams.get('lon') || process.env.DEFAULT_LON || '-74.0060');
 
-    console.log(`📍 Fetching risk data for ${profileId} at coordinates: ${lat}, ${lon}`);
+    console.log(` Fetching risk data for ${profileId} at coordinates: ${lat}, ${lon}`);
 
     // Get risk data from the data service (which handles caching)
     const riskData = await dataService.getRiskScore(profileId, lat, lon);
@@ -34,7 +34,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('❌ Risk API error:', error);
+    console.error(' Risk API error:', error);
     
     // Return a more detailed error in development
     const isDev = process.env.NODE_ENV === 'development';

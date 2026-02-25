@@ -8,7 +8,7 @@ export async function GET(request: Request) {
     const lat = parseFloat(searchParams.get('lat') || process.env.DEFAULT_LAT || '40.7128');
     const lon = parseFloat(searchParams.get('lon') || process.env.DEFAULT_LON || '-74.0060');
 
-    console.log(`📍 Fetching AQI data for coordinates: ${lat}, ${lon}`);
+    console.log(` Fetching AQI data for coordinates: ${lat}, ${lon}`);
 
     // Fetch data using the service (which handles caching)
     const { weather, airQuality } = await dataService.getCurrentConditions(lat, lon);
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    console.error('❌ AQI API route error:', error);
+    console.error(' AQI API route error:', error);
     
     const isDev = process.env.NODE_ENV === 'development';
     return NextResponse.json(
