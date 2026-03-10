@@ -37,7 +37,7 @@ export default function ParticleMap({ aqi }: ParticleMapProps) {
                         Smoke Density Map
                     </h3>
                     <p className="text-[11px] text-text-tertiary mt-0.5">
-                        Real-time particulate distribution
+                        Real-time particulate distribution.
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
