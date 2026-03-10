@@ -23,7 +23,6 @@ import {
   DropletIcon,
   ShieldIcon,
   MaskIcon,
-  HomeIcon,
   EyeIcon,
   AlertIcon,
   ActivityIcon,

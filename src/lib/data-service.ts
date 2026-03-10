@@ -151,7 +151,7 @@ class DataService {
           this.setCache(cacheKey, result);
           return result;
         }
-      } catch (error) {
+      } catch {
         console.warn('AirNow failed, falling back to PurpleAir');
       }
     }
@@ -171,7 +171,7 @@ class DataService {
           this.setCache(cacheKey, result);
           return result;
         }
-      } catch (error) {
+      } catch {
         console.warn('PurpleAir failed, falling back to OpenWeather');
       }
     }

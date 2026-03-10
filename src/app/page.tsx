@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -10,7 +10,6 @@ import {
   InfantIcon,
   ShieldIcon,
   WindIcon,
-  EyeIcon,
 } from "@/components/Icons";
 import SmokeBackground from "@/components/SmokeBackground";
 

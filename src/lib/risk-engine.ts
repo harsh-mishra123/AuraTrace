@@ -61,7 +61,7 @@ export class RiskEngine {
   generateForecast(
     profileId: string,
     currentAqi: number,
-    currentScore: number
+    _currentScore: number
   ): Array<{ hour: string; strain: number; aqi: number }> {
     const forecast = [];
     const now = new Date();

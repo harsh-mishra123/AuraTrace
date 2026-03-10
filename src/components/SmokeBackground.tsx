@@ -24,7 +24,9 @@ export default function SmokeBackground({ aqi }: SmokeBackgroundProps) {
   const frameRef = useRef<number>(0);
   const aqiRef = useRef(aqi);
 
-  aqiRef.current = aqi;
+  useEffect(() => {
+    aqiRef.current = aqi;
+  }, [aqi]);
 
   const densityFromAqi = useCallback((val: number) => {
     return Math.min(1, Math.max(0.05, val / 300));

@@ -9,12 +9,8 @@ import {
     InfantIcon,
     ShieldIcon,
     WindIcon,
-    EyeIcon,
-    ThermometerIcon,
-    DropletIcon,
     AlertIcon,
     MaskIcon,
-    HomeIcon,
 } from "@/components/Icons";
 
 /* ─── Helpers ───────────────────────────────────────────── */

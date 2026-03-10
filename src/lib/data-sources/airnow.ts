@@ -40,7 +40,7 @@ export class AirNowClient {
         pm25: pm25.AQI,
         source: 'airnow',
       };
-    } catch (error) {
+    } catch {
       clearTimeout(timeoutId);
       // COMPLETELY SILENT - no console logs
       return null;
