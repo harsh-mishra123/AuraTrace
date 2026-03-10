@@ -47,7 +47,7 @@ export default function Navbar() {
                             AURATRACE
                         </span>
                         <span className="text-[8px] text-text-tertiary tracking-[0.2em] uppercase">
-                            Smoke Impact Monitor
+                            Smoke Impact Monitor.
                         </span>
                     </div>
                 </Link>

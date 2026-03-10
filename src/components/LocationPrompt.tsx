@@ -18,7 +18,7 @@ export default function LocationPrompt({ isOpen, onAllow, onDeny }: LocationProm
         >
           <h3 className="text-sm font-medium text-text-primary mb-2">📍 Location Access</h3>
           <p className="text-xs text-text-secondary mb-4">
-            AuraTrace uses your location to provide accurate local air quality data. 
+            AuraTrace uses your location to provide accurate local air quality data, 
             This helps us give you personalized health recommendations.
           </p>
           <div className="flex gap-2">
