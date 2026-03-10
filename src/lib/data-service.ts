@@ -69,14 +69,14 @@ class DataService {
 
       // Filter sensors seen in last hour
       const now = Date.now() / 1000;
-      const recentSensors = sensors.filter(s => (now - s.lastSeen) < 3600);
+      const recentSensors = sensors.filter((s: any) => (now - s.lastSeen) < 3600);
       
       if (recentSensors.length === 0) {
         return null;
       }
 
       // Calculate weighted average based on proximity
-      const sensorsWithWeight = recentSensors.map(sensor => {
+      const sensorsWithWeight = recentSensors.map((sensor: any) => {
         const distance = this.calculateDistance(lat, lon, sensor.latitude, sensor.longitude);
         const weight = 1 / (distance + 0.1); // Inverse distance weighting
         return {
@@ -86,13 +86,13 @@ class DataService {
         };
       });
 
-      const totalWeight = sensorsWithWeight.reduce((sum, s) => sum + s.weight, 0);
-      const weightedPM25 = sensorsWithWeight.reduce((sum, s) => sum + (s.pm25 * s.weight), 0) / totalWeight;
+      const totalWeight = sensorsWithWeight.reduce((sum: number, s: any) => sum + s.weight, 0);
+      const weightedPM25 = sensorsWithWeight.reduce((sum: number, s: any) => sum + (s.pm25 * s.weight), 0) / totalWeight;
 
       const result = {
         pm25: Math.round(weightedPM25 * 10) / 10,
         sensorCount: recentSensors.length,
-        sensors: recentSensors.map(s => ({
+        sensors: recentSensors.map((s: any) => ({
           id: s.id,
           name: s.name,
           pm25: s.pm25_atm || s.pm25_cf1,
@@ -165,7 +165,7 @@ class DataService {
             aqi: this.pm25ToAQI(purpleAir.pm25),
             pm25: purpleAir.pm25,
             source: 'purpleair',
-            confidence: purpleAir.sensorCount > 3 ? 'high' : 'medium',
+            confidence: purpleAir.sensorCount > 3 ? 'high' as const : 'medium' as const,
             sensorCount: purpleAir.sensorCount,
           };
           this.setCache(cacheKey, result);
@@ -243,7 +243,7 @@ class DataService {
       pm10: bestAQI.pm25 * 1.2, // Estimate if not available
       ozone: 30, // Default if not available
       timestamp: new Date().toISOString(),
-      source: bestAQI.source,
+      source: bestAQI.source as AirQualityData['source'],
     };
 
     const result = { weather, airQuality };

@@ -97,7 +97,7 @@ function FeatureCard({
       transition={{
         delay: index * 0.1,
         duration: 0.6,
-        ease: [0.22, 1, 0.36, 1],
+        ease: [0.22, 1, 0.36, 1] as const,
       }}
       whileHover={{ y: -4, transition: { duration: 0.2 } }}
     >
@@ -123,7 +123,7 @@ export default function HomePage() {
     initial: { opacity: 0, y: 30 },
     whileInView: { opacity: 1, y: 0 },
     viewport: { once: true as const, margin: "-60px" as const },
-    transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] as const },
   };
 
   return (

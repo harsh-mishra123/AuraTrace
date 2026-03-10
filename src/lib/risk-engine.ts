@@ -99,7 +99,7 @@ export class RiskEngine {
     riskScore: number,
     aqi: number
   ): Array<{ id: string; text: string; severity: 'safe' | 'warn' | 'hazard' }> {
-    const recommendations = [];
+    const recommendations: Array<{ id: string; text: string; severity: 'safe' | 'warn' | 'hazard' }> = [];
     
     // General AQI-based recommendations
     if (aqi > 150) {

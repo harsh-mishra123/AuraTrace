@@ -40,12 +40,12 @@ export interface ForecastPoint {
   hour: string;          // "Now", "1h", "2h", etc.
   strain: number;        // 0-100
   aqi: number;
-  timestamp: string;
+  timestamp?: string;
 }
 
 export interface Recommendation {
   id: string;
-  icon: React.ReactNode; // Will be mapped server-side or client-side
+  icon?: React.ReactNode; // Will be mapped server-side or client-side
   text: string;
   severity: 'safe' | 'warn' | 'hazard';
 }
